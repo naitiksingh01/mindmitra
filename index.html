@@ -1,0 +1,741 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MindMitra</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Figtree:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;600&display=swap">
+<style>
+/* Layout: chat on the left, mood and tools panel on the right; stacks on phones.
+   Color: deep teal brand, cool mint ground, one warm orange reserved for safety content.
+   Type: Bricolage Grotesque for headings, Figtree for reading, Noto Sans Devanagari for Hindi. */
+:root {
+  --bg: #F1F7F6;
+  --surface: #FFFFFF;
+  --ink: #12343B;
+  --muted: #546D72;
+  --brand: #0F6E6A;
+  --on-brand: #FFFFFF;
+  --soft: #DDEDEB;
+  --line: #CBDEDB;
+  --warm: #B4570F;
+  --warm-soft: #FBEBDD;
+  --font-display: "Bricolage Grotesque", "Noto Sans Devanagari", system-ui, sans-serif;
+  --font-body: "Figtree", "Noto Sans Devanagari", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0B1B1F; --surface: #122A30; --ink: #E5F1EF; --muted: #93ABAF; --brand: #52BBB0;
+    --on-brand: #0B1B1F; --soft: #1A3A40; --line: #25464D; --warm: #F3A760; --warm-soft: #3A2A1B;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0B1B1F; --surface: #122A30; --ink: #E5F1EF; --muted: #93ABAF; --brand: #52BBB0;
+  --on-brand: #0B1B1F; --soft: #1A3A40; --line: #25464D; --warm: #F3A760; --warm-soft: #3A2A1B;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.55; padding-inline: 16px; padding-block: 20px 40px; }
+.app { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+h1, h2, h3 { font-family: var(--font-display); margin: 0; line-height: 1.2; text-wrap: balance; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, textarea:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
+
+/* header */
+.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.brand h1 { font-size: 1.9rem; color: var(--brand); letter-spacing: -0.01em; }
+.brand p { margin: 2px 0 0; color: var(--muted); font-size: 0.95rem; }
+.top-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--surface); }
+.seg button { border: 0; background: transparent; padding: 7px 14px; font-weight: 600; font-size: 0.9rem; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--brand); color: var(--on-brand); }
+.help-btn { border: 1.5px solid var(--warm); background: var(--warm-soft); color: var(--warm); font-weight: 600; padding: 7px 14px; border-radius: 999px; font-size: 0.9rem; }
+.help-panel { background: var(--warm-soft); border: 1.5px solid var(--warm); border-radius: 14px; padding: 16px 18px; }
+.help-panel h2 { font-size: 1.1rem; color: var(--warm); margin-bottom: 6px; }
+.help-panel p { margin: 4px 0; }
+.num { font-weight: 700; font-variant-numeric: tabular-nums; user-select: all; }
+
+/* grid */
+.grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 860px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; }
+
+/* chat */
+.chat { display: flex; flex-direction: column; height: min(640px, 82vh); min-height: 460px; }
+.chat-head { padding: 14px 18px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 10px; }
+.chat-head h2 { font-size: 1.05rem; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--brand); }
+.log { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; }
+.msg { max-width: 86%; padding: 10px 14px; border-radius: 16px; overflow-wrap: anywhere; }
+.msg.bot { background: var(--soft); border-bottom-left-radius: 4px; align-self: flex-start; }
+.msg.user { background: var(--brand); color: var(--on-brand); border-bottom-right-radius: 4px; align-self: flex-end; }
+.msg.safety { background: var(--warm-soft); border: 1.5px solid var(--warm); max-width: 94%; }
+.typing { display: inline-flex; gap: 4px; padding: 14px; }
+.typing i { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); opacity: 0.5; animation: blink 1s infinite; }
+.typing i:nth-child(2) { animation-delay: 0.15s; } .typing i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes blink { 50% { opacity: 1; transform: translateY(-2px); } }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 18px 10px; }
+.chip { border: 1.5px solid var(--brand); background: transparent; color: var(--brand); padding: 6px 13px; border-radius: 999px; font-weight: 600; font-size: 0.92rem; }
+.chip:hover { background: var(--soft); }
+.composer { display: flex; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--line); }
+.composer input { flex: 1; min-width: 0; border: 1.5px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 12px; padding: 11px 14px; font: inherit; }
+.btn { border: 0; background: var(--brand); color: var(--on-brand); font-weight: 600; padding: 10px 18px; border-radius: 12px; }
+.btn.ghost { background: transparent; border: 1.5px solid var(--line); color: var(--ink); }
+.btn:disabled { opacity: 0.5; cursor: default; }
+
+/* side panel */
+.tabs { display: flex; border-bottom: 1px solid var(--line); }
+.tabs button { flex: 1; border: 0; background: transparent; padding: 13px 8px; font-weight: 600; color: var(--muted); border-bottom: 3px solid transparent; }
+.tabs button[aria-selected="true"] { color: var(--brand); border-bottom-color: var(--brand); }
+.pane { padding: 18px; display: flex; flex-direction: column; gap: 16px; }
+.pane h3 { font-size: 1.05rem; }
+.sub { color: var(--muted); font-size: 0.92rem; margin: 2px 0 0; }
+.scores { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.scores button { border: 1.5px solid var(--line); background: var(--bg); border-radius: 12px; padding: 8px 2px; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 0.8rem; font-weight: 600; color: var(--muted); }
+.scores button b { font-family: var(--font-display); font-size: 1.25rem; color: var(--ink); font-variant-numeric: tabular-nums; }
+.scores button[aria-pressed="true"] { background: var(--brand); border-color: var(--brand); color: var(--on-brand); }
+.scores button[aria-pressed="true"] b { color: var(--on-brand); }
+.chart-wrap { border: 1px solid var(--line); border-radius: 14px; padding: 10px 8px 4px; background: var(--bg); }
+.chart-wrap svg { width: 100%; height: auto; display: block; }
+.tag { display: inline-block; font-size: 0.78rem; font-weight: 600; color: var(--warm); background: var(--warm-soft); padding: 2px 9px; border-radius: 999px; }
+.insight { background: var(--soft); border-radius: 12px; padding: 12px 14px; margin: 0; }
+
+.tool-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.tool-list button { border: 1.5px solid var(--line); background: var(--bg); border-radius: 12px; padding: 10px 12px; text-align: left; font-weight: 600; }
+.tool-list button small { display: block; font-weight: 400; color: var(--muted); font-size: 0.82rem; }
+.tool-list button[aria-pressed="true"] { border-color: var(--brand); background: var(--soft); }
+.tool-body { border-top: 1px solid var(--line); padding-top: 16px; display: flex; flex-direction: column; gap: 12px; }
+.orb-wrap { position: relative; display: grid; place-items: center; height: 210px; }
+.orb { width: 190px; height: 190px; border-radius: 50%; background: var(--soft); border: 3px solid var(--brand); transform: scale(0.75); }
+.orb-label { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; font-family: var(--font-display); font-weight: 700; font-size: 1rem; color: var(--brand); pointer-events: none; }
+.step-card { background: var(--soft); border-radius: 14px; padding: 16px; text-align: center; }
+.step-card .big { font-family: var(--font-display); font-size: 2.6rem; font-weight: 700; color: var(--brand); line-height: 1; }
+textarea { width: 100%; min-height: 76px; resize: vertical; border: 1.5px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 12px; padding: 10px 12px; font: inherit; }
+label.f { display: flex; flex-direction: column; gap: 5px; font-weight: 600; font-size: 0.92rem; }
+.entries { display: flex; flex-direction: column; gap: 8px; }
+.entry { border: 1px solid var(--line); border-radius: 12px; padding: 9px 12px; font-size: 0.92rem; overflow-wrap: anywhere; }
+.entry time { display: block; color: var(--muted); font-size: 0.78rem; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; }
+.foot { color: var(--muted); font-size: 0.85rem; display: flex; flex-direction: column; gap: 4px; }
+@media (prefers-reduced-motion: reduce) { .typing i { animation: none; } .orb { transition: none !important; } }
+</style>
+
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <h1>MindMitra</h1>
+      <p data-i="tagline"></p>
+    </div>
+    <div class="top-actions">
+      <div class="seg" role="group" aria-label="Language">
+        <button id="lang-en" type="button" aria-pressed="true">English</button>
+        <button id="lang-hi" type="button" aria-pressed="false" lang="hi">हिंदी</button>
+      </div>
+      <button id="help-btn" class="help-btn" type="button" aria-expanded="false" aria-controls="help-panel" data-i="needHelp"></button>
+    </div>
+  </header>
+
+  <section id="help-panel" class="help-panel" hidden>
+    <h2 data-i="helpTitle"></h2>
+    <p><span data-i="helpTele"></span> <span class="num">14416</span> / <span class="num">1800-891-4416</span></p>
+    <p><span data-i="helpEmerg"></span> <span class="num">112</span></p>
+    <p data-i="helpTrust"></p>
+  </section>
+
+  <main class="grid">
+    <section class="panel chat" aria-label="Chat">
+      <div class="chat-head"><span class="dot" aria-hidden="true"></span><h2 data-i="chatTitle"></h2></div>
+      <div id="log" class="log" role="log" aria-live="polite"></div>
+      <div id="chips" class="chips"></div>
+      <form id="composer" class="composer" autocomplete="off">
+        <input id="msg" type="text" maxlength="400" aria-label="Message">
+        <button id="send" class="btn" type="submit" data-i="send"></button>
+      </form>
+    </section>
+
+    <aside class="panel" id="side">
+      <div class="tabs" role="tablist">
+        <button id="tab-mood" role="tab" aria-selected="true" aria-controls="pane-mood" type="button" data-i="tabMood"></button>
+        <button id="tab-tools" role="tab" aria-selected="false" aria-controls="pane-tools" type="button" data-i="tabTools"></button>
+      </div>
+
+      <div id="pane-mood" class="pane" role="tabpanel" aria-labelledby="tab-mood">
+        <div>
+          <h3 data-i="checkin"></h3>
+          <p class="sub" data-i="checkinSub"></p>
+        </div>
+        <div id="scores" class="scores"></div>
+        <div>
+          <h3 data-i="trend"></h3>
+          <p class="sub" id="trend-sub"></p>
+        </div>
+        <div class="chart-wrap"><svg id="chart" viewBox="0 0 330 180" role="img" aria-labelledby="chart-label"><title id="chart-label"></title></svg></div>
+        <p id="insight" class="insight"></p>
+        <div class="row">
+          <button id="clear" class="btn ghost" type="button" data-i="clear"></button>
+        </div>
+      </div>
+
+      <div id="pane-tools" class="pane" role="tabpanel" aria-labelledby="tab-tools" hidden>
+        <div>
+          <h3 data-i="toolsTitle"></h3>
+          <p class="sub" data-i="toolsSub"></p>
+        </div>
+        <div class="tool-list" id="tool-list"></div>
+        <div id="tool-body" class="tool-body"></div>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="foot">
+    <span data-i="disclaimer"></span>
+    <span data-i="proto"></span>
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* ---------- text ---------- */
+  var T = {
+    en: {
+      tagline: "A private, always-on companion for your mental wellbeing",
+      needHelp: "Need help now?",
+      helpTitle: "Talk to a real person",
+      helpTele: "Tele-MANAS, free mental health helpline in India:",
+      helpEmerg: "Emergency services in India:",
+      helpTrust: "You can also tell a friend, family member or teacher you trust and stay with them.",
+      chatTitle: "Chat with MindMitra",
+      placeholder: "Type how you feel...",
+      send: "Send",
+      tabMood: "Mood", tabTools: "Coping tools",
+      checkin: "Today's check-in", checkinSub: "Tap the number that fits right now.",
+      moods: ["Low", "Down", "Okay", "Good", "Great"],
+      trend: "Your last 7 days",
+      sampleNote: "Sample week. Your check-ins replace it.",
+      ownNote: "Based on your check-ins on this device.",
+      chartLabel: "Line chart of mood score from 1 (low) to 5 (great) over the last 7 days",
+      insightSample: "This is a sample week to show how trends look. Do a check-in to start your own.",
+      insightFew: "Check in on a few more days to see your trend.",
+      insightUp: "Your mood has been rising over these days. Notice what has been helping.",
+      insightDown: "Your mood has dipped lately. Be gentle with yourself, and consider talking to someone you trust.",
+      insightFlat: "Your mood has been steady. Small habits like breaks and sleep keep it that way.",
+      average: "Average",
+      clear: "Clear my data", clearSure: "Tap again to confirm", cleared: "Data cleared.",
+      toolsTitle: "Calm, ground, reframe", toolsSub: "Short exercises based on common CBT techniques.",
+      tools: {
+        breathe: ["Breathing", "4 in, 4 hold, 6 out"],
+        ground: ["Grounding", "5-4-3-2-1 senses"],
+        reframe: ["Reframe a thought", "Find a fairer view"],
+        journal: ["Journal", "Write it down"]
+      },
+      start: "Start", stop: "Stop", again: "Go again",
+      phase: { ready: "Ready", in: "Breathe in", hold: "Hold", out: "Breathe out", done: "Well done" },
+      round: "Round",
+      breatheNote: "4 rounds, about one minute. Stop any time.",
+      ground: [
+        ["5", "things you can see"], ["4", "things you can touch"], ["3", "things you can hear"],
+        ["2", "things you can smell"], ["1", "thing you can taste"]
+      ],
+      next: "Next", groundDone: "You are here, in this moment. Take one more slow breath.",
+      reframeA: "What is the thought?", reframeB: "What supports it? What does not?", reframeC: "A fairer way to say it",
+      reframeHintC: "Example: \"I feel behind, but I have finished harder things before.\"",
+      save: "Save to journal", saved: "Saved on this device.",
+      journalPrompts: [
+        "What is one thing that went okay today?",
+        "What is weighing on you most right now, in a sentence?",
+        "Who helped you recently, and how?",
+        "What would you tell a friend feeling the way you do?",
+        "What is one small step you can take tomorrow?"
+      ],
+      newPrompt: "New prompt", journalLabel: "Your entry", recent: "Recent entries", none: "Nothing saved yet.",
+      disclaimer: "MindMitra offers support and self-help tools. It does not diagnose and is not a replacement for a doctor or counsellor.",
+      proto: "Prototype: replies use built-in rules. The full version would connect to an AI model with the same safety checks.",
+      greet: "Hi, I'm MindMitra. I'm here to listen, without judgement. How are you feeling right now?",
+      listening: "I'm listening. Tell me what's on your mind.",
+      chipTalk: "I want to talk", chipBreathe: "Try breathing", chipGround: "Ground myself", chipReframe: "Reframe a thought", chipJournal: "Write it down",
+      openedTool: "I've opened that in the Coping tools tab.",
+      moodReply: {
+        5: "That's lovely to hear. What has been going well? Writing it down helps you remember it on harder days.",
+        4: "Good to hear. Want to note one thing that went well today?",
+        3: "Okay is a fair place to be. Is anything sitting at the back of your mind?",
+        2: "Sorry it's a low day, and thank you for telling me. Would you like to talk, or try something calming first?",
+        1: "That sounds really heavy, and I'm glad you said it. Tell me what has been happening, or start with a calming exercise. If it feels like too much, Tele-MANAS (14416) is there to talk, any time."
+      },
+      crisis: "I'm really glad you told me. What you feel matters, and you deserve support from a real person right now. Please call Tele-MANAS on 14416 or 1800-891-4416. If you are in immediate danger, call 112. If you can, tell someone you trust and stay with them.",
+      intents: {
+        exam: ["Exam pressure is tough. Let's make it smaller: what is one topic you could cover in the next 25 minutes?", "Many students feel this before exams. A short break and a plan for the next hour usually helps more than studying all night."],
+        anxious: ["Anxiety can feel loud. Let's slow down together. Try breathing out for longer than you breathe in.", "I hear you. When your mind races, naming what you can see around you brings you back to the present."],
+        sad: ["I'm sorry you feel this way. You don't have to fix it right now. What has been weighing on you most?", "Thank you for sharing that. Low moods are common and they do pass, even when it doesn't feel like it. Is there someone you could talk to today?"],
+        lonely: ["Feeling alone is painful, and more common among students than people admit. Is there one person you could message today, even just to say hi?"],
+        sleep: ["Poor sleep makes everything feel heavier. Try keeping your phone away for 30 minutes before bed and doing slow breathing. Want to try it now?"],
+        anger: ["Frustration is a sign that something matters to you. Before reacting, try a few slow breaths. What set it off?"],
+        career: ["Uncertainty about the future is stressful. Try writing down one small step you can take this week."],
+        happy: ["Lovely to hear. What made it good? Writing it down helps your mind hold on to it."],
+        thanks: ["You're welcome. I'm here whenever you want to check in."],
+        bye: ["Take care. Come back for a check-in tomorrow."],
+        hello: ["Hello again. How are you feeling right now?"],
+        fallback: ["Thank you for telling me. Can you say a bit more about how that feels?", "I'm listening. Which part of this is hardest right now?", "That makes sense. What would help most at the moment: talking it through, or something calming?"]
+      }
+    },
+    hi: {
+      tagline: "आपके मानसिक स्वास्थ्य के लिए एक निजी साथी, हर समय उपलब्ध",
+      needHelp: "अभी मदद चाहिए?",
+      helpTitle: "किसी इंसान से बात करें",
+      helpTele: "Tele-MANAS, भारत की मुफ़्त मानसिक स्वास्थ्य हेल्पलाइन:",
+      helpEmerg: "भारत में आपातकालीन सेवा:",
+      helpTrust: "आप किसी भरोसेमंद दोस्त, परिवार के सदस्य या शिक्षक को भी बता सकते हैं और उनके साथ रहें।",
+      chatTitle: "MindMitra से बात करें",
+      placeholder: "बताइए आप कैसा महसूस कर रहे हैं...",
+      send: "भेजें",
+      tabMood: "मूड", tabTools: "शांत रहने के उपाय",
+      checkin: "आज का चेक-इन", checkinSub: "जो अभी सबसे ठीक बैठे, वह नंबर दबाएँ।",
+      moods: ["बहुत बुरा", "उदास", "ठीक", "अच्छा", "बहुत अच्छा"],
+      trend: "पिछले 7 दिन",
+      sampleNote: "नमूना सप्ताह। आपके चेक-इन इसकी जगह लेंगे।",
+      ownNote: "इस डिवाइस पर आपके चेक-इन के आधार पर।",
+      chartLabel: "पिछले 7 दिनों के मूड स्कोर का ग्राफ़, 1 (बुरा) से 5 (बहुत अच्छा)",
+      insightSample: "यह सिर्फ़ नमूना सप्ताह है। अपना ट्रेंड देखने के लिए चेक-इन करें।",
+      insightFew: "अपना ट्रेंड देखने के लिए कुछ और दिन चेक-इन करें।",
+      insightUp: "इन दिनों आपका मूड बेहतर हुआ है। ध्यान दें कि क्या मदद कर रहा है।",
+      insightDown: "हाल में आपका मूड गिरा है। खुद के साथ नरमी रखें और किसी भरोसेमंद व्यक्ति से बात करें।",
+      insightFlat: "आपका मूड स्थिर रहा है। छोटे ब्रेक और नींद इसे बनाए रखते हैं।",
+      average: "औसत",
+      clear: "मेरा डेटा हटाएँ", clearSure: "पक्का करने के लिए फिर दबाएँ", cleared: "डेटा हटा दिया गया।",
+      toolsTitle: "शांत हों, वर्तमान में लौटें, सोच बदलें", toolsSub: "आम CBT तकनीकों पर आधारित छोटे अभ्यास।",
+      tools: {
+        breathe: ["साँस का अभ्यास", "4 अंदर, 4 रोकें, 6 बाहर"],
+        ground: ["ग्राउंडिंग", "5-4-3-2-1 इंद्रियाँ"],
+        reframe: ["सोच बदलें", "संतुलित नज़रिया खोजें"],
+        journal: ["डायरी", "लिख डालिए"]
+      },
+      start: "शुरू करें", stop: "रोकें", again: "फिर से करें",
+      phase: { ready: "तैयार", in: "साँस अंदर", hold: "रोकें", out: "साँस बाहर", done: "बहुत बढ़िया" },
+      round: "चरण",
+      breatheNote: "4 चरण, लगभग एक मिनट। कभी भी रोक सकते हैं।",
+      ground: [
+        ["5", "चीज़ें जो आप देख सकते हैं"], ["4", "चीज़ें जिन्हें आप छू सकते हैं"], ["3", "आवाज़ें जो आप सुन सकते हैं"],
+        ["2", "चीज़ें जिनकी गंध आप महसूस कर सकते हैं"], ["1", "चीज़ जिसका स्वाद आप ले सकते हैं"]
+      ],
+      next: "आगे", groundDone: "आप यहीं हैं, इसी पल में। एक और धीमी साँस लीजिए।",
+      reframeA: "विचार क्या है?", reframeB: "क्या इसका समर्थन करता है? क्या नहीं?", reframeC: "इसे कहने का संतुलित तरीका",
+      reframeHintC: "उदाहरण: \"मैं पीछे महसूस कर रहा हूँ, पर पहले भी मैंने कठिन चीज़ें पूरी की हैं।\"",
+      save: "डायरी में सहेजें", saved: "इस डिवाइस पर सहेजा गया।",
+      journalPrompts: [
+        "आज एक ऐसी बात क्या थी जो ठीक रही?",
+        "अभी सबसे ज़्यादा किस बात का बोझ है, एक वाक्य में?",
+        "हाल में किसने आपकी मदद की, और कैसे?",
+        "आप जैसा महसूस करने वाले दोस्त से आप क्या कहेंगे?",
+        "कल आप कौन सा एक छोटा कदम उठा सकते हैं?"
+      ],
+      newPrompt: "नया सवाल", journalLabel: "आपकी प्रविष्टि", recent: "हाल की प्रविष्टियाँ", none: "अभी कुछ सहेजा नहीं गया।",
+      disclaimer: "MindMitra सहारा और स्व-सहायता के साधन देता है। यह निदान नहीं करता और डॉक्टर या काउंसलर का विकल्प नहीं है।",
+      proto: "प्रोटोटाइप: जवाब बने-बनाए नियमों से आते हैं। पूरा संस्करण इन्हीं सुरक्षा जाँचों के साथ AI मॉडल से जुड़ेगा।",
+      greet: "नमस्ते, मैं MindMitra हूँ। मैं बिना किसी जजमेंट के सुनने के लिए यहाँ हूँ। अभी आप कैसा महसूस कर रहे हैं?",
+      listening: "मैं सुन रहा हूँ। बताइए, आपके मन में क्या है।",
+      chipTalk: "मुझे बात करनी है", chipBreathe: "साँस का अभ्यास", chipGround: "खुद को स्थिर करें", chipReframe: "सोच बदलें", chipJournal: "लिख डालिए",
+      openedTool: "मैंने उसे शांत रहने के उपाय टैब में खोल दिया है।",
+      moodReply: {
+        5: "यह सुनकर बहुत अच्छा लगा। क्या अच्छा चल रहा है? इसे लिख लेने से कठिन दिनों में याद रहता है।",
+        4: "अच्छा लगा सुनकर। क्या आज की एक अच्छी बात लिखना चाहेंगे?",
+        3: "ठीक होना भी ठीक है। क्या कोई बात मन के किसी कोने में चल रही है?",
+        2: "अफ़सोस कि आज का दिन भारी है, और बताने के लिए शुक्रिया। क्या आप बात करना चाहेंगे, या पहले कुछ शांत करने वाला करें?",
+        1: "यह सच में भारी लगता है, और आपने कहा, यह अच्छा है। बताइए क्या हो रहा है, या पहले शांत करने वाला अभ्यास करें। अगर यह बहुत ज़्यादा लगे तो Tele-MANAS (14416) किसी भी समय बात करने के लिए है।"
+      },
+      crisis: "आपने मुझे बताया, यह बहुत अच्छा है। आप जो महसूस कर रहे हैं वह मायने रखता है, और आपको अभी किसी असली इंसान का सहारा मिलना चाहिए। कृपया Tele-MANAS को 14416 या 1800-891-4416 पर कॉल करें। अगर आप तुरंत खतरे में हैं तो 112 पर कॉल करें। हो सके तो किसी भरोसेमंद व्यक्ति को बताएँ और उनके साथ रहें।",
+      intents: {
+        exam: ["परीक्षा का दबाव मुश्किल होता है। इसे छोटा करें: अगले 25 मिनट में आप कौन सा एक टॉपिक पढ़ सकते हैं?", "परीक्षा से पहले कई छात्र ऐसा महसूस करते हैं। छोटा ब्रेक और अगले एक घंटे की योजना अक्सर रात भर पढ़ने से ज़्यादा मदद करती है।"],
+        anxious: ["चिंता का शोर तेज़ लग सकता है। चलिए मिलकर धीमे होते हैं। साँस अंदर लेने से ज़्यादा देर तक बाहर छोड़ें।", "मैं समझता हूँ। जब मन दौड़ता है, तो आसपास की चीज़ों के नाम लेने से आप वर्तमान में लौट आते हैं।"],
+        sad: ["मुझे अफ़सोस है कि आप ऐसा महसूस कर रहे हैं। इसे अभी ठीक करना ज़रूरी नहीं है। सबसे ज़्यादा किस बात का बोझ है?", "यह बताने के लिए शुक्रिया। उदासी आम है और बीत जाती है, भले ही अभी ऐसा न लगे। क्या आज किसी से बात कर सकते हैं?"],
+        lonely: ["अकेलापन दर्द देता है, और छात्रों में यह लोगों के सोचने से ज़्यादा आम है। क्या आज किसी एक व्यक्ति को मैसेज कर सकते हैं, बस हाय कहने के लिए?"],
+        sleep: ["कम नींद से सब कुछ भारी लगता है। सोने से 30 मिनट पहले फ़ोन दूर रखें और धीमी साँसें लें। क्या अभी आज़माना चाहेंगे?"],
+        anger: ["गुस्सा इस बात का संकेत है कि कुछ आपके लिए मायने रखता है। प्रतिक्रिया से पहले कुछ धीमी साँसें लें। इसकी शुरुआत किससे हुई?"],
+        career: ["भविष्य की अनिश्चितता तनाव देती है। इस हफ़्ते आप कौन सा एक छोटा कदम उठा सकते हैं, उसे लिखिए।"],
+        happy: ["सुनकर अच्छा लगा। यह अच्छा क्यों रहा? इसे लिखने से मन इसे थामे रखता है।"],
+        thanks: ["आपका स्वागत है। जब भी चेक-इन करना हो, मैं यहीं हूँ।"],
+        bye: ["अपना ध्यान रखिए। कल चेक-इन के लिए फिर आइए।"],
+        hello: ["फिर से नमस्ते। अभी आप कैसा महसूस कर रहे हैं?"],
+        fallback: ["बताने के लिए शुक्रिया। क्या आप थोड़ा और बता सकते हैं कि यह कैसा लगता है?", "मैं सुन रहा हूँ। इसमें सबसे कठिन हिस्सा कौन सा है?", "समझ आता है। अभी सबसे ज़्यादा क्या मदद करेगा: बात करना, या कुछ शांत करने वाला?"]
+      }
+    }
+  };
+
+  /* ---------- detection rules ---------- */
+  var CRISIS = /(suicid|kill myself|end my life|want to die|wanna die|don'?t want to live|self[- ]?harm|hurt myself|cut myself|no reason to live|better off dead|आत्महत्या|खुदकुशी|मर जाना|मरना चाहत|जीना नहीं|जान दे|खुद को नुकसान|marna chah|jeena nahi|jina nahi|khudkushi|atmahatya)/i;
+  var INTENTS = [
+    ["exam", /(exam|test|result|marks|grades|study|padhai|pariksha|परीक्षा|पढ़ाई|रिज़ल्ट|रिजल्ट)/i, ["breathe", "reframe"]],
+    ["anxious", /(anxi|worr|panic|nervous|overthink|scared|afraid|ghabra|stress|चिंता|घबरा|डर|तनाव)/i, ["breathe", "ground"]],
+    ["lonely", /(lonely|alone|no one|nobody|akela|अकेला|अकेली)/i, ["journal", "talk"]],
+    ["sleep", /(sleep|insomnia|tired|neend|नींद|थक)/i, ["breathe", "journal"]],
+    ["anger", /(angry|anger|frustrat|irritat|gussa|गुस्सा)/i, ["breathe", "reframe"]],
+    ["career", /(career|job|placement|interview|future|internship|naukri|नौकरी|भविष्य)/i, ["journal", "reframe"]],
+    ["sad", /(\bsad|\bdown\b|depress|\bcry|empty|hopeless|\blow\b|udaas|उदास|रोना|रो रहा|रो रही|खाली)/i, ["journal", "talk"]],
+    ["thanks", /(thank|thanks|shukriya|dhanyavad|शुक्रिया|धन्यवाद)/i, []],
+    ["bye", /(bye|goodnight|good night|alvida|अलविदा|शुभ रात्रि)/i, []],
+    ["hello", /^\s*(hi|hello|hey|namaste)\b|^\s*(नमस्ते|हेलो)/i, []],
+    ["happy", /(happy|great|good|excited|proud|khush|खुश|अच्छा)/i, ["journal"]]
+  ];
+
+  /* ---------- storage ---------- */
+  var store = {
+    get: function (k, d) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+    set: function (k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+    del: function (k) { try { localStorage.removeItem(k); } catch (e) {} }
+  };
+  var lang = store.get("mm_lang", "en");
+  if (lang !== "en" && lang !== "hi") lang = "en";
+  var moods = store.get("mm_mood", []);      // [{d:'YYYY-MM-DD', s:1-5}]
+  var journal = store.get("mm_journal", []); // [{t:ms, kind:'journal'|'reframe', text}]
+  var mem = { n: {} };                       // reply rotation counters
+  var tx = function () { return T[lang]; };
+
+  /* ---------- helpers ---------- */
+  function dkey(d) { var m = d.getMonth() + 1, day = d.getDate(); return d.getFullYear() + "-" + (m < 10 ? "0" : "") + m + "-" + (day < 10 ? "0" : "") + day; }
+  function daysAgo(n) { var d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - n); return d; }
+  function hasDeva(s) { return /[ऀ-ॿ]/.test(s); }
+
+  /* ---------- chat ---------- */
+  var log = $("log"), chipsEl = $("chips");
+  function addMsg(text, who, extra) {
+    var m = document.createElement("div");
+    m.className = "msg " + who + (extra ? " " + extra : "");
+    m.textContent = text;
+    log.appendChild(m);
+    log.scrollTop = log.scrollHeight;
+    return m;
+  }
+  function setChips(list) {
+    chipsEl.textContent = "";
+    list.forEach(function (c) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "chip";
+      b.textContent = c.label;
+      b.addEventListener("click", c.run);
+      chipsEl.appendChild(b);
+    });
+    log.scrollTop = log.scrollHeight;
+  }
+  function toolChip(id) {
+    var t = tx();
+    var label = { breathe: t.chipBreathe, ground: t.chipGround, reframe: t.chipReframe, journal: t.chipJournal }[id];
+    return { label: label, run: function () { addMsg(label, "user"); botSay(t.openedTool, [], function () { openTool(id, true); }); } };
+  }
+  function talkChip() {
+    var t = tx();
+    return { label: t.chipTalk, run: function () { addMsg(t.chipTalk, "user"); botSay(t.listening, []); } };
+  }
+  function chipsFor(ids) {
+    return ids.map(function (id) { return id === "talk" ? talkChip() : toolChip(id); });
+  }
+  function moodChips() {
+    return tx().moods.slice().reverse().map(function (label, i) {
+      var score = 5 - i;
+      return { label: label, run: function () { addMsg(label, "user"); logMood(score); botSay(tx().moodReply[score], score <= 2 ? ["breathe", "talk", "journal"] : score === 3 ? ["talk", "ground"] : ["journal"]); } };
+    });
+  }
+  var busy = false;
+  function botSay(text, chipIds, after, safety) {
+    busy = true; setChips([]);
+    var typing = document.createElement("div");
+    typing.className = "msg bot typing"; typing.innerHTML = "<i></i><i></i><i></i>";
+    log.appendChild(typing); log.scrollTop = log.scrollHeight;
+    setTimeout(function () {
+      typing.remove();
+      addMsg(text, "bot", safety ? "safety" : "");
+      setChips(chipsFor(chipIds));
+      busy = false;
+      if (after) after();
+    }, 550);
+  }
+  function pick(intent, arr) {
+    var n = mem.n[intent] || 0; mem.n[intent] = n + 1;
+    return arr[n % arr.length];
+  }
+  function reply(text) {
+    // reply in Hindi when the user types Devanagari, whatever the toggle says
+    var L = hasDeva(text) ? "hi" : lang;
+    var t = T[L];
+    if (CRISIS.test(text)) {
+      botSay(t.crisis, ["talk"], null, true);
+      showHelp(true);
+      return;
+    }
+    for (var i = 0; i < INTENTS.length; i++) {
+      if (INTENTS[i][1].test(text)) {
+        var id = INTENTS[i][0];
+        var swap = L !== lang; var keep = lang; lang = L;
+        botSay(pick(id, t.intents[id]), INTENTS[i][2], function () { if (swap) lang = keep; });
+        return;
+      }
+    }
+    botSay(pick("fallback", t.intents.fallback), ["breathe", "journal"]);
+  }
+  $("composer").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var inp = $("msg"), v = inp.value.trim();
+    if (!v || busy) return;
+    addMsg(v, "user"); inp.value = "";
+    reply(v);
+  });
+
+  /* ---------- help panel ---------- */
+  function showHelp(open) {
+    $("help-panel").hidden = !open;
+    $("help-btn").setAttribute("aria-expanded", String(open));
+  }
+  $("help-btn").addEventListener("click", function () { showHelp($("help-panel").hidden); });
+
+  /* ---------- mood ---------- */
+  function logMood(score) {
+    var k = dkey(new Date());
+    moods = moods.filter(function (m) { return m.d !== k; });
+    moods.push({ d: k, s: score });
+    moods.sort(function (a, b) { return a.d < b.d ? -1 : 1; });
+    store.set("mm_mood", moods);
+    renderMood();
+  }
+  var SAMPLE = [3, 2, 3, 2, 4, 3, 4];
+  function weekData() {
+    var real = moods.length > 0, out = [];
+    for (var i = 6; i >= 0; i--) {
+      var d = daysAgo(i), k = dkey(d), v = null;
+      if (real) { moods.forEach(function (m) { if (m.d === k) v = m.s; }); }
+      else v = SAMPLE[6 - i];
+      out.push({ d: d, s: v });
+    }
+    return { rows: out, real: real };
+  }
+  function renderScores() {
+    var box = $("scores"), t = tx(), today = dkey(new Date()), cur = null;
+    moods.forEach(function (m) { if (m.d === today) cur = m.s; });
+    box.textContent = "";
+    t.moods.forEach(function (label, i) {
+      var b = document.createElement("button");
+      b.type = "button"; b.setAttribute("aria-pressed", String(cur === i + 1));
+      b.innerHTML = "<b>" + (i + 1) + "</b><span></span>";
+      b.lastChild.textContent = label;
+      b.addEventListener("click", function () {
+        logMood(i + 1);
+        addMsg(label, "user");
+        botSay(t.moodReply[i + 1], i + 1 <= 2 ? ["breathe", "talk", "journal"] : i + 1 === 3 ? ["talk", "ground"] : ["journal"]);
+      });
+      box.appendChild(b);
+    });
+  }
+  function renderChart() {
+    var t = tx(), wd = weekData(), svg = $("chart"), NS = "http://www.w3.org/2000/svg";
+    var W = 330, H = 180, L = 52, R = 14, Tp = 14, B = 30, iw = W - L - R, ih = H - Tp - B;
+    var loc = lang === "hi" ? "hi-IN" : "en-IN";
+    svg.querySelector("title").textContent = t.chartLabel;
+    while (svg.childNodes.length > 1) svg.removeChild(svg.lastChild);
+    function mk(n, a, txt) { var e = document.createElementNS(NS, n); for (var k in a) e.setAttribute(k, a[k]); if (txt != null) e.textContent = txt; svg.appendChild(e); return e; }
+    var xs = function (i) { return L + (iw * i) / 6; };
+    var ys = function (s) { return Tp + ih * (5 - s) / 4; };
+    [1, 3, 5].forEach(function (s) {
+      mk("line", { x1: L, x2: W - R, y1: ys(s), y2: ys(s), style: "stroke:var(--line);stroke-width:1" });
+      mk("text", { x: L - 8, y: ys(s) + 4, "text-anchor": "end", style: "fill:var(--muted);font-size:11px;font-family:var(--font-body)" }, t.moods[s - 1]);
+    });
+    var pts = [];
+    wd.rows.forEach(function (r, i) {
+      mk("text", { x: xs(i), y: H - 9, "text-anchor": "middle", style: "fill:var(--muted);font-size:11px;font-family:var(--font-body)" }, r.d.toLocaleDateString(loc, { weekday: "short" }));
+      if (r.s != null) pts.push({ x: xs(i), y: ys(r.s), last: false });
+    });
+    if (pts.length) pts[pts.length - 1].last = true;
+    if (pts.length > 1) {
+      var area = "M" + pts[0].x + "," + ys(1) + " " + pts.map(function (p) { return "L" + p.x + "," + p.y; }).join(" ") + " L" + pts[pts.length - 1].x + "," + ys(1) + " Z";
+      mk("path", { d: area, style: "fill:var(--brand);opacity:0.12" });
+      mk("polyline", { points: pts.map(function (p) { return p.x + "," + p.y; }).join(" "), style: "fill:none;stroke:var(--brand);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round" });
+    }
+    pts.forEach(function (p) {
+      mk("circle", { cx: p.x, cy: p.y, r: p.last ? 6 : 4, style: "fill:" + (p.last ? "var(--brand)" : "var(--surface)") + ";stroke:var(--brand);stroke-width:2.5" });
+    });
+    $("trend-sub").textContent = wd.real ? t.ownNote : t.sampleNote;
+    var ins = $("insight"), vals = wd.rows.filter(function (r) { return r.s != null; }).map(function (r) { return r.s; });
+    if (!wd.real) ins.textContent = t.insightSample;
+    else if (vals.length < 3) ins.textContent = t.insightFew;
+    else {
+      var h = Math.floor(vals.length / 2);
+      var avg = function (a) { return a.reduce(function (x, y) { return x + y; }, 0) / a.length; };
+      var diff = avg(vals.slice(-h)) - avg(vals.slice(0, h));
+      var msg = diff > 0.4 ? t.insightUp : diff < -0.4 ? t.insightDown : t.insightFlat;
+      ins.textContent = msg + " " + t.average + ": " + avg(vals).toFixed(1) + " / 5.";
+    }
+  }
+  function renderMood() { renderScores(); renderChart(); }
+
+  var clearArmed = false, clearTimer = null;
+  $("clear").addEventListener("click", function () {
+    var b = $("clear"), t = tx();
+    if (!clearArmed) {
+      clearArmed = true; b.textContent = t.clearSure;
+      clearTimer = setTimeout(function () { clearArmed = false; b.textContent = tx().clear; }, 3500);
+      return;
+    }
+    clearTimeout(clearTimer); clearArmed = false;
+    moods = []; journal = []; store.del("mm_mood"); store.del("mm_journal");
+    b.textContent = t.cleared; setTimeout(function () { b.textContent = tx().clear; }, 1800);
+    renderMood(); if (curTool === "journal" || curTool === "reframe") renderTool();
+  });
+
+  /* ---------- tabs ---------- */
+  function showTab(name) {
+    var mood = name === "mood";
+    $("tab-mood").setAttribute("aria-selected", String(mood));
+    $("tab-tools").setAttribute("aria-selected", String(!mood));
+    $("pane-mood").hidden = !mood; $("pane-tools").hidden = mood;
+  }
+  $("tab-mood").addEventListener("click", function () { showTab("mood"); });
+  $("tab-tools").addEventListener("click", function () { showTab("tools"); });
+
+  /* ---------- tools ---------- */
+  var curTool = "breathe", breathRun = 0, gStep = 0, promptIdx = 0;
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function renderToolList() {
+    var t = tx(), box = $("tool-list"); box.textContent = "";
+    ["breathe", "ground", "reframe", "journal"].forEach(function (id) {
+      var b = document.createElement("button");
+      b.type = "button"; b.setAttribute("aria-pressed", String(curTool === id));
+      b.innerHTML = "<span></span><small></small>";
+      b.firstChild.textContent = t.tools[id][0]; b.lastChild.textContent = t.tools[id][1];
+      b.addEventListener("click", function () { openTool(id, false); });
+      box.appendChild(b);
+    });
+  }
+  function openTool(id, fromChat) {
+    stopBreath(); curTool = id; gStep = 0;
+    showTab("tools"); renderToolList(); renderTool();
+    if (fromChat && window.matchMedia("(max-width: 860px)").matches) $("side").scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+  }
+  function renderTool() {
+    var body = $("tool-body"); body.textContent = "";
+    if (curTool === "breathe") toolBreathe(body);
+    else if (curTool === "ground") toolGround(body);
+    else if (curTool === "reframe") toolReframe(body);
+    else toolJournal(body);
+  }
+  function el(tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
+
+  function stopBreath() { breathRun++; }
+  function toolBreathe(body) {
+    var t = tx();
+    var wrap = el("div", "orb-wrap"), orb = el("div", "orb"), label = el("div", "orb-label", t.phase.ready);
+    label.setAttribute("aria-live", "polite");
+    wrap.appendChild(orb); wrap.appendChild(label);
+    var note = el("p", "sub", t.breatheNote), btn = el("button", "btn", t.start);
+    btn.type = "button";
+    body.appendChild(wrap); body.appendChild(note); body.appendChild(btn);
+    function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+    btn.addEventListener("click", async function () {
+      if (btn.dataset.running === "1") { stopBreath(); btn.dataset.running = "0"; btn.textContent = t.start; label.textContent = t.phase.ready; orb.style.transition = "none"; orb.style.transform = "scale(0.75)"; return; }
+      var token = ++breathRun; btn.dataset.running = "1"; btn.textContent = t.stop;
+      var phases = [["in", 4, 1], ["hold", 4, 1], ["out", 6, 0.75]];
+      for (var r = 1; r <= 4; r++) {
+        for (var p = 0; p < phases.length; p++) {
+          if (token !== breathRun) return;
+          var ph = phases[p];
+          orb.style.transition = reduce ? "none" : "transform " + ph[1] + "s ease-in-out";
+          orb.style.transform = "scale(" + ph[2] + ")";
+          for (var s = ph[1]; s >= 1; s--) {
+            if (token !== breathRun) return;
+            label.textContent = t.phase[ph[0]] + " " + s;
+            await sleep(1000);
+          }
+        }
+      }
+      if (token !== breathRun) return;
+      label.textContent = t.phase.done; btn.dataset.running = "0"; btn.textContent = t.again;
+      orb.style.transition = "none"; orb.style.transform = "scale(0.75)";
+    });
+  }
+  function toolGround(body) {
+    var t = tx(), done = gStep >= t.ground.length;
+    var card = el("div", "step-card");
+    if (done) { card.appendChild(el("p", null, t.groundDone)); }
+    else {
+      card.appendChild(el("div", "big", t.ground[gStep][0]));
+      card.appendChild(el("p", null, t.ground[gStep][1]));
+    }
+    var btn = el("button", "btn", done ? t.again : t.next); btn.type = "button";
+    btn.addEventListener("click", function () { gStep = done ? 0 : gStep + 1; renderTool(); });
+    body.appendChild(card); body.appendChild(btn);
+  }
+  function saveEntry(kind, text, statusEl) {
+    text = text.trim(); if (!text) return;
+    journal.unshift({ t: Date.now(), kind: kind, text: text });
+    journal = journal.slice(0, 30); store.set("mm_journal", journal);
+    statusEl.textContent = tx().saved;
+  }
+  function recentList(body, kind) {
+    var t = tx(); body.appendChild(el("h3", null, t.recent));
+    var list = el("div", "entries"), rows = journal.filter(function (j) { return j.kind === kind; }).slice(0, 3);
+    if (!rows.length) list.appendChild(el("p", "sub", t.none));
+    rows.forEach(function (j) {
+      var e = el("div", "entry"), tm = el("time", null, new Date(j.t).toLocaleString(lang === "hi" ? "hi-IN" : "en-IN", { dateStyle: "medium", timeStyle: "short" }));
+      e.appendChild(tm); e.appendChild(document.createTextNode(j.text)); list.appendChild(e);
+    });
+    body.appendChild(list);
+  }
+  function field(body, id, label, ph) {
+    var wrap = el("label", "f", label); wrap.setAttribute("for", id);
+    var ta = document.createElement("textarea"); ta.id = id; if (ph) ta.placeholder = ph;
+    wrap.appendChild(ta); body.appendChild(wrap); return ta;
+  }
+  function toolReframe(body) {
+    var t = tx();
+    var a = field(body, "rf-a", t.reframeA), b = field(body, "rf-b", t.reframeB), c = field(body, "rf-c", t.reframeC, t.reframeHintC);
+    var row = el("div", "row"), save = el("button", "btn", t.save), st = el("span", "sub");
+    save.type = "button"; row.appendChild(save); row.appendChild(st); body.appendChild(row);
+    save.addEventListener("click", function () {
+      var txt = [a.value.trim(), b.value.trim(), c.value.trim()].filter(Boolean).join("\n");
+      saveEntry("reframe", txt, st); if (txt) { a.value = b.value = c.value = ""; renderTool(); }
+    });
+    recentList(body, "reframe");
+  }
+  function toolJournal(body) {
+    var t = tx(), q = el("p", null, t.journalPrompts[promptIdx % t.journalPrompts.length]);
+    q.style.fontWeight = "600"; body.appendChild(q);
+    var np = el("button", "btn ghost", t.newPrompt); np.type = "button";
+    np.addEventListener("click", function () { promptIdx++; renderTool(); });
+    var ta = field(body, "jr-text", t.journalLabel);
+    var row = el("div", "row"), save = el("button", "btn", t.save), st = el("span", "sub");
+    save.type = "button"; row.appendChild(save); row.appendChild(np); row.appendChild(st); body.appendChild(row);
+    save.addEventListener("click", function () { saveEntry("journal", ta.value, st); if (ta.value.trim()) { ta.value = ""; renderTool(); } });
+    recentList(body, "journal");
+  }
+
+  /* ---------- language + boot ---------- */
+  function applyLang() {
+    var t = tx();
+    document.documentElement.lang = lang;
+    document.querySelectorAll("[data-i]").forEach(function (n) { n.textContent = t[n.getAttribute("data-i")]; });
+    $("msg").placeholder = t.placeholder;
+    $("lang-en").setAttribute("aria-pressed", String(lang === "en"));
+    $("lang-hi").setAttribute("aria-pressed", String(lang === "hi"));
+    $("clear").textContent = t.clear;
+    renderMood(); renderToolList();
+    if (curTool === "breathe" || curTool === "ground" || curTool === "reframe" || curTool === "journal") { stopBreath(); renderTool(); }
+  }
+  function setLang(l) {
+    if (l === lang) return;
+    lang = l; store.set("mm_lang", l); applyLang();
+    if (log.children.length <= 1) { log.textContent = ""; greet(); }
+    else setChips(moodChips());
+  }
+  $("lang-en").addEventListener("click", function () { setLang("en"); });
+  $("lang-hi").addEventListener("click", function () { setLang("hi"); });
+
+  function greet() { botSay(tx().greet, [], function () { setChips(moodChips()); }); }
+  applyLang();
+  greet();
+})();
+</script>
+</body>
+</html>
